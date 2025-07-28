@@ -8,6 +8,8 @@ from qdrant.qdrant_client import init_qdrant
 from qdrant.uploader import upload_to_qdrant
 from utils.qdrant_utils import search_similar_chunks
 from utils.reranker import rerank_with_cross_encoder
+from utils.summarizer import summarize_context
+from utils.rewriter import rewrite_query
 import os
 import tempfile
 
@@ -78,23 +80,49 @@ async def upload_pdf(file: UploadFile = File(...)):
 #         # "answer": call_llm(context, query)
 #     }
 
-# Version 2: Pipeline với Reranker tăng độ chính xác cao hơn
+# # Version 2: Pipeline với Reranker tăng độ chính xác cao hơn
+# @app.get("/search")
+# def search(query: str = Query(...)):
+#     query_vector = embed_text(query)
+#     results = search_similar_chunks(query_vector, top_k=10)  # lấy nhiều hơn để re-rank
+
+#     # # Trả về 3 kết quả tốt nhất sau khi rerank
+#     # reranked_results = rerank_with_cross_encoder(query, results, top_n=3)
+
+#     # context_chunks = [r.payload.get("text", "") for r in reranked_results]
+#     # context = "\n".join(context_chunks)
+
+#     # Trả về kết quả tốt nhất sau khi rerank
+#     reranked_results = rerank_with_cross_encoder(query, results, top_n=1)
+#     context = reranked_results[0].payload.get("text", "").replace("\n", " ").strip()
+
+#     return {
+#         "query": query,
+#         "context": context
+#     }
+
 @app.get("/search")
 def search(query: str = Query(...)):
-    query_vector = embed_text(query)
-    results = search_similar_chunks(query_vector, top_k=10)  # lấy nhiều hơn để re-rank
+    # 1. Viết lại câu hỏi cho rõ nghĩa hơn
+    rewritten_query = rewrite_query(query)
 
-    # # Trả về 3 kết quả tốt nhất sau khi rerank
-    # reranked_results = rerank_with_cross_encoder(query, results, top_n=3)
+    # 2. Vector hóa câu hỏi viết lại
+    query_vector = embed_text(rewritten_query)
 
-    # context_chunks = [r.payload.get("text", "") for r in reranked_results]
-    # context = "\n".join(context_chunks)
+    # 3. Tìm các đoạn văn bản gần nhất từ Qdrant
+    results = search_similar_chunks(query_vector, top_k=10)
 
-    # Trả về kết quả tốt nhất sau khi rerank
-    reranked_results = rerank_with_cross_encoder(query, results, top_n=1)
-    context = reranked_results[0].payload.get("text", "").replace("\n", " ").strip()
+    # 4. Re-rank lại bằng Cross-Encoder để chọn ra đoạn liên quan nhất
+    reranked_results = rerank_with_cross_encoder(rewritten_query, results, top_n=3)
+
+    # 5. Tổng hợp nội dung lại để tránh quá dài
+    context_chunks = [r.payload.get("text", "") for r in reranked_results]
+    context = " ".join(context_chunks).replace("\n", " ").strip()
+    summarized_context = summarize_context(context)
 
     return {
-        "query": query,
-        "context": context
+        "original_query": query,
+        "rewritten_query": rewritten_query,
+        "summarized_context": summarized_context
+        # Nếu cần có thể gọi tiếp GPT để tạo câu trả lời từ context này.
     }
