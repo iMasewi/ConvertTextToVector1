@@ -112,20 +112,21 @@ def smart_pdf_chunking(text: str,
         sentences = sent_tokenize(para)
         if len(sentences) <= window_size:
             chunk = " ".join(sentences)
-            if len(chunk.split()) <= max_chunk_tokens:
+            if 10 < len(chunk.split()) <= max_chunk_tokens:
                 chunks.append(chunk)
-            else:
+            elif len(chunk.split()) > max_chunk_tokens:
                 chunks.extend(
                     recursive_chunking(chunk, recursive_chunk_size, recursive_overlap)
                 )
         else:
             sliding_chunks = sliding_window(sentences, window_size, stride)
             for chunk in sliding_chunks:
-                if len(chunk.split()) <= max_chunk_tokens:
-                    chunks.append(chunk)
-                else:
+                joined_chunk = " ".join(chunk) if isinstance(chunk, list) else chunk
+                if 10 < len(joined_chunk.split()) <= max_chunk_tokens:
+                    chunks.append(joined_chunk)
+                elif len(joined_chunk.split()) > max_chunk_tokens:
                     chunks.extend(
-                        recursive_chunking(chunk, recursive_chunk_size, recursive_overlap)
+                        recursive_chunking(joined_chunk, recursive_chunk_size, recursive_overlap)
                     )
 
     return chunks

@@ -1,5 +1,7 @@
 Tải môi trường
 ### `pip install -r requirements.txt`
+### `pip install -U sentence-transformers`
+
 Run code
 ### `uvicorn main:app --reload`
 Nếu lỗi nltk.data.find('tokenizers/punkt')
