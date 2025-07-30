@@ -6,3 +6,4 @@ sentence-transformers
 pdfminer.six
 python-docx
 unstructured
+requests

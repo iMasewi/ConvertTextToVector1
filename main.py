@@ -8,6 +8,9 @@ from qdrant.qdrant_client import init_qdrant
 from qdrant.uploader import upload_to_qdrant
 from utils.qdrant_utils import search_similar_chunks
 from utils.reranker import rerank_with_cross_encoder
+from ollama_client.ollama_client import ask_ollama
+from utils.rewriter import rewrite_query
+from utils.summarizer import summarize_context
 import os
 import tempfile
 
@@ -35,7 +38,6 @@ async def upload_pdf(file: UploadFile = File(...)):
         # 4. Vector hóa
         vectors = embed_chunks(chunks)
         
-
         # 5. Đẩy vào Qdrant
         client = init_qdrant("my_documents")
         upload_to_qdrant(client, "my_documents", chunks, vectors)
@@ -98,3 +100,23 @@ def search(query: str = Query(...)):
         "query": query,
         "context": context
     }
+
+# Version 3: Pipeline với LLM trả lời câu hỏi
+# @app.get("/search")
+# def search(query: str = Query(...)):
+#     # 1. Viết lại câu hỏi
+#     rewritten = rewrite_query(query)
+#     # 2. Tìm embedding + search
+#     query_vector = embed_text(rewritten)
+#     results = search_similar_chunks(query_vector, top_k=10)
+#     # 3. Rerank và chọn kết quả tốt nhất
+#     reranked = rerank_with_cross_encoder(rewritten, results, top_n=3)
+#     context = " ".join([r.payload.get("text", "") for r in reranked])
+#     # 4. Tóm tắt nội dung
+#     summary = summarize_context(context)
+#     return {
+#         "original_query": query,
+#         "rewritten_query": rewritten,
+#         "context": context,
+#         "summary": summary
+#     }

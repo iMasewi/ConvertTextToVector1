@@ -8,6 +8,7 @@ def search_similar_chunks(query_vector: list[float], top_k: int = 5):
         collection_name="my_documents",
         query_vector=query_vector,
         limit=top_k,
-        with_payload=True
+        with_payload=True,
+        indexed_only=True  # Thêm parameter này
     )
     return search_result
